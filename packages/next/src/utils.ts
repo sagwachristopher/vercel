@@ -3036,14 +3036,19 @@ export const onPrerenderRoute =
         }
         // We additionally vary based on if there's a postponed prerender
         // because if there isn't, then that means that we generated an
-        // empty shell, and producing an empty RSC shell would be a waste.
-        // If there is a postponed prerender, then the RSC shell would be
-        // non-empty, and it would be valuable to also generate an empty
-        // RSC shell.
+        // empty shell. When cache components are enabled, we still want to
+        // vary the HTML by params so the route shell can be cached per-param.
+        // Otherwise, keep the fallback shell shared across params.
         else if (postponedPrerender) {
-          htmlAllowQuery = [];
+          htmlAllowQuery = isAppClientParamParsingEnabled ? allowQuery : [];
         }
       }
+
+      const partialFallback =
+        isAppPathRoute &&
+        renderingMode === RenderingMode.PARTIALLY_STATIC &&
+        isFallback &&
+        Boolean(postponedState);
 
       // If this is a static metadata file that should output FileRef instead of Prerender
       const staticMetadataFile = getSourceFileRefOfStaticMetadata(
@@ -3075,6 +3080,7 @@ export const onPrerenderRoute =
           experimentalStreamingLambdaPath,
           chain,
           allowHeader,
+          partialFallback: partialFallback || undefined,
 
           ...(isNotFound
             ? {
@@ -3124,6 +3130,7 @@ export const onPrerenderRoute =
           bypassToken: prerenderManifest.bypassToken,
           experimentalBypassFor,
           allowHeader,
+          partialFallback: undefined,
 
           ...(isNotFound
             ? {
@@ -3228,6 +3235,7 @@ export const onPrerenderRoute =
               bypassToken: prerenderManifest.bypassToken,
               experimentalBypassFor,
               allowHeader,
+              partialFallback: undefined,
               chain: {
                 outputPath: normalizePathData(outputPathData),
                 headers: routesManifest.ppr.chain.headers,
@@ -3355,6 +3363,7 @@ export const onPrerenderRoute =
                 // Use the same prerender group as the JSON/data prerender.
                 group: prerenderGroup,
                 allowHeader,
+                partialFallback: undefined,
 
                 // These routes are always only static, so they should not
                 // permit any bypass unless it's for preview
